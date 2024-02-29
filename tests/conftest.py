@@ -75,7 +75,7 @@ def _is_child_dir(path: str | Path, parent: str | Path) -> bool:
 
 dask.config.set(
     {
-        "coiled.account": "dask-benchmarks",
+        "coiled.account": "tomwhite",
         "distributed.admin.system-monitor.gil.enabled": True,
     }
 )
@@ -618,8 +618,8 @@ def _mark_client(name, *, upload_file=None, worker_plugin=None):
 pytest.mark.client = _mark_client
 
 
-S3_REGION = "us-east-2"
-S3_BUCKET = "s3://coiled-runtime-ci"
+S3_REGION = "eu-west-1"
+S3_BUCKET = "s3://cubed-tom-benchmark"
 
 
 @pytest.fixture(scope="session")
