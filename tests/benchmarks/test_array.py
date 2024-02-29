@@ -1,4 +1,5 @@
 from __future__ import annotations
+from functools import partial
 
 import time
 
@@ -168,6 +169,60 @@ def test_quadratic_mean(small_client, backend):
         mean = mean.to_dask_dataframe()
 
     wait(mean, small_client, 10 * 60)
+
+
+def test_quadratic_mean_cubed():
+    xr = pytest.importorskip("xarray")
+    cubed = pytest.importorskip("cubed")
+    import cubed.random
+    from cubed.extensions.rich import RichProgressBar
+
+    from cubed import config
+
+    config.pprint()
+
+    size = 5000
+    ds = xr.Dataset(
+        dict(
+            anom_u=(
+                ["time", "face", "j", "i"],
+                cubed.random.random((size, 1, 987, 1920), chunks=(10, 1, -1, -1)),
+            ),
+            anom_v=(
+                ["time", "face", "j", "i"],
+                cubed.random.random((size, 1, 987, 1920), chunks=(10, 1, -1, -1)),
+            ),
+        )
+    )
+
+    quad = ds**2
+    quad["uv"] = ds.anom_u * ds.anom_v
+    mean = quad.mean(
+        "time", skipna=False, use_new_impl=True, split_every=10
+    )
+
+    from cubed.core.optimization import multiple_inputs_optimize_dag
+    opt_fn = partial(multiple_inputs_optimize_dag, max_total_num_input_blocks=40)
+
+    cubed.visualize(
+        *(mean[var].data for var in ("anom_u", "anom_v", "uv")),
+        filename=f"quad_means_xarray_{size}-unoptimized",
+        optimize_graph=False,
+        show_hidden=True,
+    )
+    cubed.visualize(
+        *(mean[var].data for var in ("anom_u", "anom_v", "uv")),
+        filename=f"quad_means_xarray_{size}",
+        optimize_function=opt_fn,
+        show_hidden=True,
+    )
+
+    progress = RichProgressBar()
+    mean.compute(
+        callbacks=[progress],
+        optimize_function=opt_fn,
+        compute_arrays_in_parallel=True,
+    )
 
 
 def test_vorticity(small_client, new_array):
